@@ -30,15 +30,34 @@ if option == 'Backup':
             os.makedirs(backup_main_file, exist_ok=True)
             
             def execute_backup():
-                # Replace with the full path to mysqldump if necessary
-                command = f"/usr/bin/mysqldump -h {backup_server_ip} -P {backup_server_port} -u {backup_username} -p{backup_password} {backup_database} > \"{backup_file_path}\""
+                # Construct the command with proper quoting
+                command = f"mysqldump -h {backup_server_ip} -P {backup_server_port} -u {backup_username} -p{backup_password} {backup_database}"
+
+                # Debugging output
+                st.write(f'Executing command: {command}')
+                st.write(f'Backup file path: {backup_file_path}')
+
                 try:
-                    result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
-                    st.success(f'Successfully created backup: {backup_file_path}')
-                except subprocess.CalledProcessError as e:
-                    st.error(f'Error occurred during backup: {e.stderr}')
-                
+                    # Open file to write the output
+                    with open(backup_file_path, 'wb') as backup_file:
+                        # Execute the command and redirect stdout to the file
+                        process = subprocess.Popen(command, shell=True, stdout=backup_file, stderr=subprocess.PIPE)
+                        _, error = process.communicate()  # Capture stderr
+
+                        # Debugging logs
+                        st.write(f'Process return code: {process.returncode}')
+                        st.write(f'Stderr output: {error.decode()}')
+
+                        if process.returncode != 0:
+                            st.error(f'Error occurred during backup: {error.decode()}')
+                        else:
+                            st.success(f'Successfully created backup: {backup_file_path}')
+                except Exception as e:
+                    st.error(f'Exception occurred during backup: {str(e)}')
             execute_backup()
+
+
+
 
 elif option == 'Upgrade':
     st.header('Upgrade')
