@@ -34,9 +34,9 @@ if option == 'Backup':
                 command = f"mysqldump -h {backup_server_ip} -P {backup_server_port} -u {backup_username} -p{backup_password} {backup_database} > \"{backup_file_path}\""
                 try:
                     result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
-                    print(f'Successfully created backup: {backup_file_path}')
+                    st.success(f'Successfully created backup: {backup_file_path}')
                 except subprocess.CalledProcessError as e:
-                    print(f'Error occurred during backup: {e.stderr}')
+                    st.error(f'Error occurred during backup: {e.stderr}')
                 
             execute_backup()
 
@@ -59,9 +59,9 @@ elif option == 'Upgrade':
                 command = f"mysql -h {upgrade_server_ip} -P {upgrade_server_port} -u {upgrade_username} -p{upgrade_password} {upgrade_database} < \"{file_path}\""
                 try:
                     result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
-                    print(f'Successfully executed {file_path}')
+                    st.success(f'Successfully executed {file_path}')
                 except subprocess.CalledProcessError as e:
-                    print(f'Error occurred while executing {file_path}: {e.stderr}')
+                    st.error(f'Error occurred while executing {file_path}: {e.stderr}')
             
             file_execution = False
             for root, dirs, files in os.walk(upgrade_main_file):
