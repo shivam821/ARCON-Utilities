@@ -30,8 +30,8 @@ if option == 'Backup':
             os.makedirs(backup_main_file, exist_ok=True)
             
             def execute_backup():
-                # Command with properly quoted path and remote server details
-                command = f"mysqldump -h {backup_server_ip} -P {backup_server_port} -u {backup_username} -p{backup_password} {backup_database} > \"{backup_file_path}\""
+                # Replace with the full path to mysqldump if necessary
+                command = f"/usr/bin/mysqldump -h {backup_server_ip} -P {backup_server_port} -u {backup_username} -p{backup_password} {backup_database} > \"{backup_file_path}\""
                 try:
                     result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
                     st.success(f'Successfully created backup: {backup_file_path}')
@@ -68,6 +68,7 @@ elif option == 'Upgrade':
                 for file in files:
                     if file.endswith('.sql'):
                         file_path = os.path.join(root, file)
+                        st.write(f'Processing file: {file_path}')  # Log file being processed
                         execute_sql_file(file_path)
                         file_execution = True
             
