@@ -5,7 +5,8 @@ from datetime import datetime
 
 st.title('DB Executor')
 
-tab1, tab2 = st.tabs(['Backup', 'Upgrade'])
+# Create a selectbox for the two options
+option = st.selectbox('Choose an action:', ['Backup', 'Upgrade'])
 
 # Function to connect to the MSSQL database
 def connect_to_mssql(server, username, password, database=None):
@@ -19,7 +20,7 @@ def connect_to_mssql(server, username, password, database=None):
         connection_str += f'DATABASE={database};'
     return pyodbc.connect(connection_str)
 
-with tab1:
+if option == 'Backup':
     st.header('Backup')
     
     backup_server = st.text_input('Enter Server:', key='backup_server')
@@ -54,7 +55,7 @@ with tab1:
             
             execute_backup()
 
-with tab2:
+elif option == 'Upgrade':
     st.header('Upgrade')
     
     upgrade_server = st.text_input('Enter Server:', key='upgrade_server')
