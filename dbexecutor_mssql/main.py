@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-import pyodbc
+import pymssql
 from datetime import datetime
 
 st.title('DB Executor')
@@ -10,15 +10,7 @@ option = st.selectbox('Choose an action:', ['Backup', 'Upgrade'])
 
 # Function to connect to the MSSQL database
 def connect_to_mssql(server, username, password, database=None):
-    connection_str = (
-        f'DRIVER={{ODBC Driver 17 for SQL Server}};'
-        f'SERVER={server};'
-        f'UID={username};'
-        f'PWD={password};'
-    )
-    if database:
-        connection_str += f'DATABASE={database};'
-    return pyodbc.connect(connection_str)
+    return pymssql.connect(server, username, password, database)
 
 if option == 'Backup':
     st.header('Backup')
