@@ -1,11 +1,23 @@
 import streamlit as st
 import os
-import subprocess
+import pyodbc
 from datetime import datetime
 
 st.title('DB Executor')
 
 tab1, tab2 = st.tabs(['Backup', 'Upgrade'])
+
+# Function to connect to the MSSQL database
+def connect_to_mssql(server, username, password, database=None):
+    connection_str = (
+        f'DRIVER={{ODBC Driver 17 for SQL Server}};'
+        f'SERVER={server};'
+        f'UID={username};'
+        f'PWD={password};'
+    )
+    if database:
+        connection_str += f'DATABASE={database};'
+    return pyodbc.connect(connection_str)
 
 with tab1:
     st.header('Backup')
@@ -28,15 +40,17 @@ with tab1:
             os.makedirs(backup_main_file, exist_ok=True)
             
             def execute_backup():
-                # Command with properly quoted path
-                command = f"sqlcmd -S {backup_server} -U {backup_username} -P {backup_password} -Q \"BACKUP DATABASE [{backup_database}] TO DISK='{backup_file_path}'\""
                 try:
-                    result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
+                    conn = connect_to_mssql(backup_server, backup_username, backup_password)
+                    cursor = conn.cursor()
+                    backup_query = f"BACKUP DATABASE [{backup_database}] TO DISK = '{backup_file_path}'"
+                    cursor.execute(backup_query)
+                    conn.commit()
                     st.success(f'Successfully created backup: {backup_file_path}')
-                    print(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    st.error(f'Error occurred during backup: {e.stderr}')
-                    print(f'Error occurred during backup: {e.stderr}')
+                except Exception as e:
+                    st.error(f'Error occurred during backup: {str(e)}')
+                finally:
+                    conn.close()
             
             execute_backup()
 
@@ -53,25 +67,32 @@ with tab2:
         if not upgrade_server or not upgrade_username or not upgrade_password or not upgrade_database or not upgrade_main_file:
             st.error('Please enter all the required data.')
         else:
-            def execute_sql_file(file_path):
-                command = f"sqlcmd -S {upgrade_server} -U {upgrade_username} -P {upgrade_password} -d {upgrade_database} -i \"{file_path}\""
+            def execute_sql_file(conn, file_path):
                 try:
-                    result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
+                    with open(file_path, 'r') as file:
+                        sql_script = file.read()
+                    cursor = conn.cursor()
+                    cursor.execute(sql_script)
+                    conn.commit()
                     st.success(f'Successfully executed {file_path}')
-                    print(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    st.error(f'Error occurred while executing {file_path}: {e.stderr}')
-                    print(f'Error occurred while executing {file_path}: {e.stderr}')
+                except Exception as e:
+                    st.error(f'Error occurred while executing {file_path}: {str(e)}')
             
-            file_execution = False
-            for root, dirs, files in os.walk(upgrade_main_file):
-                for file in files:
-                    if file.endswith('.sql'):
-                        file_path = os.path.join(root, file)
-                        execute_sql_file(file_path)
-                        file_execution = True
-            
-            if not file_execution:
-                st.error('No SQL files found or execution was unsuccessful.')
-            else:
-                st.success('Upgrade successful')
+            try:
+                conn = connect_to_mssql(upgrade_server, upgrade_username, upgrade_password, upgrade_database)
+                file_execution = False
+                for root, dirs, files in os.walk(upgrade_main_file):
+                    for file in files:
+                        if file.endswith('.sql'):
+                            file_path = os.path.join(root, file)
+                            execute_sql_file(conn, file_path)
+                            file_execution = True
+                
+                if not file_execution:
+                    st.error('No SQL files found or execution was unsuccessful.')
+                else:
+                    st.success('Upgrade successful')
+            except Exception as e:
+                st.error(f'Error during upgrade process: {str(e)}')
+            finally:
+                conn.close()
