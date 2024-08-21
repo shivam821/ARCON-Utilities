@@ -1,7 +1,30 @@
-import streamlit as st
 import os
 import subprocess
+import streamlit as st
 from datetime import datetime
+
+def download_and_install_sqlcmd():
+    # Check if sqlcmd is already installed
+    try:
+        result = subprocess.run(["sqlcmd", "-?"], capture_output=True, text=True, check=True)
+        st.write("sqlcmd is already installed.")
+    except subprocess.CalledProcessError:
+        # Download the SQL Server Command Line Tools from the official Microsoft website
+        url = "https://go.microsoft.com/fwlink/?linkid=2163764"
+        installer_path = "sqlcmd.msi"
+        
+        # Download the installer
+        st.write("Downloading sqlcmd installer...")
+        os.system(f"curl -L -o {installer_path} {url}")
+        
+        # Run the installer
+        st.write("Installing sqlcmd...")
+        os.system(f"msiexec /i {installer_path} /quiet")
+        
+        st.write("sqlcmd installed successfully.")
+
+# Ensure sqlcmd is installed before proceeding
+download_and_install_sqlcmd()
 
 st.title('DB Executor')
 
