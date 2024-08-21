@@ -1,55 +1,54 @@
-import os
-import subprocess
 import streamlit as st
+import subprocess
+import os
 from datetime import datetime
 
-def download_and_install_sqlcmd():
-    # Check if sqlcmd is already installed
+def backup_database(server, username, password, database, backup_path):
     try:
-        result = subprocess.run(["sqlcmd", "-?"], capture_output=True, text=True, check=True)
-        st.write("sqlcmd is already installed.")
-    except subprocess.CalledProcessError:
-        # Download the SQL Server Command Line Tools from the official Microsoft website
-        url = "https://go.microsoft.com/fwlink/?linkid=2163764"
-        installer_path = "sqlcmd.msi"
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = os.path.join(backup_path, f"{database}_backup_{timestamp}.bak")
         
-        # Download the installer
-        st.write("Downloading sqlcmd installer...")
-        os.system(f"curl -L -o {installer_path} {url}")
+        powershell_command = f"""
+        $secure_password = ConvertTo-SecureString '{password}' -AsPlainText -Force;
+        $credential = New-Object System.Management.Automation.PSCredential ('{username}', $secure_password);
+        Invoke-Sqlcmd -ServerInstance '{server}' -Database '{database}' -Credential $credential -Query "BACKUP DATABASE [{database}] TO DISK = '{backup_file}'";
+        """
+        result = subprocess.run(["powershell", "-Command", powershell_command], capture_output=True, text=True)
         
-        # Run the installer
-        st.write("Installing sqlcmd...")
-        os.system(f"msiexec /i {installer_path} /quiet")
-        
-        st.write("sqlcmd installed successfully.")
+        if result.returncode == 0:
+            st.success(f"Successfully created backup: {backup_file}")
+        else:
+            st.error(f"Error occurred during backup: {result.stderr}")
+    except Exception as e:
+        st.error(f"Exception occurred during backup: {str(e)}")
 
-def download_and_install_odbc_driver():
-    # Check if ODBC Driver 17 for SQL Server is already installed
+def execute_sql_files(server, username, password, database, folder_path):
     try:
-        result = subprocess.run(["odbcinst", "-q", "all"], capture_output=True, text=True, check=True)
-        if "ODBC Driver 17 for SQL Server" in result.stdout:
-            st.write("ODBC Driver 17 for SQL Server is already installed.")
-            return
-    except subprocess.CalledProcessError:
-        pass
-    
-    # Download the ODBC Driver 17 for SQL Server from the official Microsoft website
-    url = "https://go.microsoft.com/fwlink/?linkid=2154699"
-    installer_path = "msodbcsql.msi"
-    
-    # Download the installer
-    st.write("Downloading ODBC Driver 17 for SQL Server installer...")
-    os.system(f"curl -L -o {installer_path} {url}")
-    
-    # Run the installer
-    st.write("Installing ODBC Driver 17 for SQL Server...")
-    os.system(f"msiexec /i {installer_path} /quiet")
-    
-    st.write("ODBC Driver 17 for SQL Server installed successfully.")
-
-# Ensure sqlcmd and ODBC Driver are installed before proceeding
-download_and_install_sqlcmd()
-download_and_install_odbc_driver()
+        powershell_command_template = f"""
+        $secure_password = ConvertTo-SecureString '{password}' -AsPlainText -Force;
+        $credential = New-Object System.Management.Automation.PSCredential ('{username}', $secure_password);
+        Invoke-Sqlcmd -ServerInstance '{server}' -Database '{database}' -Credential $credential -InputFile "{{file_path}}";
+        """
+        
+        file_execution = False
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                if file.endswith('.sql'):
+                    powershell_command = powershell_command_template.replace("{{file_path}}", os.path.join(root, file))
+                    result = subprocess.run(["powershell", "-Command", powershell_command], capture_output=True, text=True)
+                    
+                    if result.returncode == 0:
+                        st.success(f"Successfully executed {file}")
+                        file_execution = True
+                    else:
+                        st.error(f"Error occurred while executing {file}: {result.stderr}")
+        
+        if not file_execution:
+            st.error('No SQL files found or execution was unsuccessful.')
+        else:
+            st.success('Upgrade successful')
+    except Exception as e:
+        st.error(f"Exception occurred during SQL execution: {str(e)}")
 
 st.title('DB Executor')
 
@@ -68,25 +67,8 @@ with tab1:
         if not backup_server or not backup_username or not backup_password or not backup_database or not backup_main_file:
             st.error('Please enter all the required data.')
         else:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            backup_file = f"{backup_database}_backup_{timestamp}.bak"
-            backup_file_path = os.path.join(backup_main_file, backup_file)
-            
-            # Ensure the directory exists
             os.makedirs(backup_main_file, exist_ok=True)
-            
-            def execute_backup():
-                # Command with properly quoted path
-                command = f"sqlcmd -S {backup_server} -U {backup_username} -P {backup_password} -Q \"BACKUP DATABASE [{backup_database}] TO DISK='{backup_file_path}'\""
-                try:
-                    result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
-                    st.success(f'Successfully created backup: {backup_file_path}')
-                    print(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    st.error(f'Error occurred during backup: {e.stderr}')
-                    print(f'Error occurred during backup: {e.stderr}')
-            
-            execute_backup()
+            backup_database(backup_server, backup_username, backup_password, backup_database, backup_main_file)
 
 with tab2:
     st.header('Upgrade')
@@ -101,25 +83,4 @@ with tab2:
         if not upgrade_server or not upgrade_username or not upgrade_password or not upgrade_database or not upgrade_main_file:
             st.error('Please enter all the required data.')
         else:
-            def execute_sql_file(file_path):
-                command = f"sqlcmd -S {upgrade_server} -U {upgrade_username} -P {upgrade_password} -d {upgrade_database} -i \"{file_path}\""
-                try:
-                    result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
-                    st.success(f'Successfully executed {file_path}')
-                    print(result.stdout)
-                except subprocess.CalledProcessError as e:
-                    st.error(f'Error occurred while executing {file_path}: {e.stderr}')
-                    print(f'Error occurred while executing {file_path}: {e.stderr}')
-            
-            file_execution = False
-            for root, dirs, files in os.walk(upgrade_main_file):
-                for file in files:
-                    if file.endswith('.sql'):
-                        file_path = os.path.join(root, file)
-                        execute_sql_file(file_path)
-                        file_execution = True
-            
-            if not file_execution:
-                st.error('No SQL files found or execution was unsuccessful.')
-            else:
-                st.success('Upgrade successful')
+            execute_sql_files(upgrade_server, upgrade_username, upgrade_password, upgrade_database, upgrade_main_file)
