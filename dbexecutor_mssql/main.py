@@ -1,7 +1,55 @@
-import streamlit as st
 import os
 import subprocess
+import streamlit as st
 from datetime import datetime
+
+def download_and_install_sqlcmd():
+    # Check if sqlcmd is already installed
+    try:
+        result = subprocess.run(["sqlcmd", "-?"], capture_output=True, text=True, check=True)
+        st.write("sqlcmd is already installed.")
+    except subprocess.CalledProcessError:
+        # Download the SQL Server Command Line Tools from the official Microsoft website
+        url = "https://go.microsoft.com/fwlink/?linkid=2163764"
+        installer_path = "sqlcmd.msi"
+        
+        # Download the installer
+        st.write("Downloading sqlcmd installer...")
+        os.system(f"curl -L -o {installer_path} {url}")
+        
+        # Run the installer
+        st.write("Installing sqlcmd...")
+        os.system(f"msiexec /i {installer_path} /quiet")
+        
+        st.write("sqlcmd installed successfully.")
+
+def download_and_install_odbc_driver():
+    # Check if ODBC Driver 17 for SQL Server is already installed
+    try:
+        result = subprocess.run(["odbcinst", "-q", "all"], capture_output=True, text=True, check=True)
+        if "ODBC Driver 17 for SQL Server" in result.stdout:
+            st.write("ODBC Driver 17 for SQL Server is already installed.")
+            return
+    except subprocess.CalledProcessError:
+        pass
+    
+    # Download the ODBC Driver 17 for SQL Server from the official Microsoft website
+    url = "https://go.microsoft.com/fwlink/?linkid=2154699"
+    installer_path = "msodbcsql.msi"
+    
+    # Download the installer
+    st.write("Downloading ODBC Driver 17 for SQL Server installer...")
+    os.system(f"curl -L -o {installer_path} {url}")
+    
+    # Run the installer
+    st.write("Installing ODBC Driver 17 for SQL Server...")
+    os.system(f"msiexec /i {installer_path} /quiet")
+    
+    st.write("ODBC Driver 17 for SQL Server installed successfully.")
+
+# Ensure sqlcmd and ODBC Driver are installed before proceeding
+download_and_install_sqlcmd()
+download_and_install_odbc_driver()
 
 st.title('DB Executor')
 
