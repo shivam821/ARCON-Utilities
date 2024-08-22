@@ -5,9 +5,13 @@ from datetime import datetime
 
 def install_sqlserver_module():
     try:
+        # Absolute path to PowerShell
+        powershell_path = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+        
         # Install the SQLServer module if not already installed
         install_command = "Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser"
-        result = subprocess.run(["powershell", "-Command", install_command], capture_output=True, text=True)
+        result = subprocess.run([powershell_path, "-Command", install_command], capture_output=True, text=True)
+        
         if result.returncode == 0:
             st.write("SqlServer module installed successfully.")
         else:
@@ -25,7 +29,7 @@ def perform_backup(server, username, password, database, backup_path):
         $credential = New-Object System.Management.Automation.PSCredential ('{username}', $secure_password);
         Invoke-Sqlcmd -ServerInstance '{server}' -Database '{database}' -Credential $credential -Query "BACKUP DATABASE [{database}] TO DISK = '{backup_file}'";
         """
-        result = subprocess.run(["powershell", "-Command", powershell_command], capture_output=True, text=True)
+        result = subprocess.run([powershell_path, "-Command", powershell_command], capture_output=True, text=True)
         
         if result.returncode == 0:
             st.success(f"Successfully created backup: {backup_file}")
@@ -47,7 +51,7 @@ def execute_sql_files(server, username, password, database, folder_path):
             for file in files:
                 if file.endswith('.sql'):
                     powershell_command = powershell_command_template.replace("{{file_path}}", os.path.join(root, file))
-                    result = subprocess.run(["powershell", "-Command", powershell_command], capture_output=True, text=True)
+                    result = subprocess.run([powershell_path, "-Command", powershell_command], capture_output=True, text=True)
                     
                     if result.returncode == 0:
                         st.success(f"Successfully executed {file}")
