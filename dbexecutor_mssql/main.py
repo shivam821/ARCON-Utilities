@@ -4,27 +4,37 @@ import streamlit as st
 from datetime import datetime
 
 def download_and_install_sqlcmd():
-    # Check if sqlcmd is already installed
     try:
         result = subprocess.run(["sqlcmd", "-?"], capture_output=True, text=True, check=True)
         st.write("sqlcmd is already installed.")
     except subprocess.CalledProcessError:
-        # Download the SQL Server Command Line Tools from the official Microsoft website
         url = "https://go.microsoft.com/fwlink/?linkid=2163764"
         installer_path = "sqlcmd.msi"
-        
-        # Download the installer
         st.write("Downloading sqlcmd installer...")
         os.system(f"curl -L -o {installer_path} {url}")
-        
-        # Run the installer
         st.write("Installing sqlcmd...")
         os.system(f"msiexec /i {installer_path} /quiet")
-        
         st.write("sqlcmd installed successfully.")
 
-# Ensure sqlcmd is installed before proceeding
+def download_and_install_odbc_driver():
+    try:
+        result = subprocess.run(["odbcinst", "-q", "all"], capture_output=True, text=True, check=True)
+        if "ODBC Driver 17 for SQL Server" in result.stdout:
+            st.write("ODBC Driver 17 for SQL Server is already installed.")
+            return
+    except subprocess.CalledProcessError:
+        pass
+    
+    url = "https://go.microsoft.com/fwlink/?linkid=2154699"
+    installer_path = "msodbcsql.msi"
+    st.write("Downloading ODBC Driver 17 for SQL Server installer...")
+    os.system(f"curl -L -o {installer_path} {url}")
+    st.write("Installing ODBC Driver 17 for SQL Server...")
+    os.system(f"msiexec /i {installer_path} /quiet")
+    st.write("ODBC Driver 17 for SQL Server installed successfully.")
+
 download_and_install_sqlcmd()
+download_and_install_odbc_driver()
 
 st.title('DB Executor')
 
@@ -54,17 +64,13 @@ with tab1:
         if not backup_server or not backup_username or not backup_password or not backup_database or not backup_main_file:
             st.error('Please enter all the required data.')
         else:
-            # Test the SQL Server connection
             if test_sql_connection(backup_server, backup_username, backup_password):
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 backup_file = f"{backup_database}_backup_{timestamp}.bak"
                 backup_file_path = os.path.join(backup_main_file, backup_file)
-                
-                # Ensure the directory exists
                 os.makedirs(backup_main_file, exist_ok=True)
                 
                 def execute_backup():
-                    # Command with properly quoted path
                     command = f"sqlcmd -S {backup_server} -U {backup_username} -P {backup_password} -Q \"BACKUP DATABASE [{backup_database}] TO DISK='{backup_file_path}'\""
                     try:
                         result = subprocess.run(command, shell=True, text=True, capture_output=True, check=True)
@@ -89,7 +95,6 @@ with tab2:
         if not upgrade_server or not upgrade_username or not upgrade_password or not upgrade_database or not upgrade_main_file:
             st.error('Please enter all the required data.')
         else:
-            # Test the SQL Server connection
             if test_sql_connection(upgrade_server, upgrade_username, upgrade_password):
                 def execute_sql_file(file_path):
                     command = f"sqlcmd -S {upgrade_server} -U {upgrade_username} -P {upgrade_password} -d {upgrade_database} -i \"{file_path}\""
