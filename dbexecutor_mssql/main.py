@@ -3,7 +3,19 @@ import subprocess
 import os
 from datetime import datetime
 
-def backup_database(server, username, password, database, backup_path):
+def install_sqlserver_module():
+    try:
+        # Install the SQLServer module if not already installed
+        install_command = "Install-Module -Name SqlServer -Force -AllowClobber -Scope CurrentUser"
+        result = subprocess.run(["powershell", "-Command", install_command], capture_output=True, text=True)
+        if result.returncode == 0:
+            st.write("SqlServer module installed successfully.")
+        else:
+            st.error(f"Error installing SqlServer module: {result.stderr}")
+    except Exception as e:
+        st.error(f"Exception occurred during module installation: {str(e)}")
+
+def perform_backup(server, username, password, database, backup_path):
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = os.path.join(backup_path, f"{database}_backup_{timestamp}.bak")
@@ -50,7 +62,11 @@ def execute_sql_files(server, username, password, database, folder_path):
     except Exception as e:
         st.error(f"Exception occurred during SQL execution: {str(e)}")
 
+# Streamlit App
 st.title('DB Executor')
+
+# Install the SqlServer module at the start
+install_sqlserver_module()
 
 tab1, tab2 = st.tabs(['Backup', 'Upgrade'])
 
@@ -68,7 +84,7 @@ with tab1:
             st.error('Please enter all the required data.')
         else:
             os.makedirs(backup_main_file, exist_ok=True)
-            backup_database(backup_server, backup_username, backup_password, backup_database, backup_main_file)
+            perform_backup(backup_server, backup_username, backup_password, backup_database, backup_main_file)
 
 with tab2:
     st.header('Upgrade')
